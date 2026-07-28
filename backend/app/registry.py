@@ -1,0 +1,190 @@
+"""Реестр моделей kie.ai.
+
+Единственное место, которое нужно менять, чтобы добавить новую модель:
+достаточно добавить новый ModelSpec в MODEL_REGISTRY. Роутер /models и
+фронтенд ничего не хардкодят — они полностью опираются на этот реестр.
+
+Стоимость (estimated_credits) — приблизительная, для оценки ДО генерации.
+Фактическая стоимость берётся из поля creditsConsumed ответа kie.ai
+recordInfo и является авторитетной. Ориентировочные цифры нужно сверить на
+https://kie.ai/pricing при подключении реального API-ключа.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Callable
+
+
+class Style(str, Enum):
+    PHOTOREALISTIC = "photorealistic"
+    ANIME = "anime"
+    DIGITAL_ART = "digital_art"
+    THREE_D = "3d_render"
+    SKETCH = "sketch"
+    PAINTING = "painting"
+
+
+class AspectPreset(str, Enum):
+    SQUARE = "square"          # 1:1
+    LANDSCAPE = "landscape"    # 4:3 / 16:9
+    PORTRAIT = "portrait"      # 3:4
+    STORY = "story"            # 9:16
+    WIDE = "wide"              # 16:9
+
+
+# Промт-суффиксы для моделей без отдельного параметра стиля.
+STYLE_PROMPT_SUFFIX: dict[Style, str] = {
+    Style.PHOTOREALISTIC: "photorealistic, highly detailed, realistic lighting",
+    Style.ANIME: "anime style, vibrant colors, cel shading",
+    Style.DIGITAL_ART: "digital art, concept art style",
+    Style.THREE_D: "3d render, octane render, cinematic lighting",
+    Style.SKETCH: "pencil sketch, hand-drawn line art",
+    Style.PAINTING: "oil painting, textured brush strokes",
+}
+
+
+@dataclass(frozen=True)
+class ModelSpec:
+    id: str  # внутренний slug, используется в API и БД
+    kie_model: str  # значение поля "model" в запросе к kie.ai
+    display_name: str
+    provider: str
+    supports_negative_prompt: bool
+    supports_seed: bool
+    estimated_credits: int
+    build_input: Callable[[str, Style, AspectPreset, str | None, int | None], dict]
+    active: bool = True
+
+
+def _with_style_suffix(prompt: str, style: Style) -> str:
+    suffix = STYLE_PROMPT_SUFFIX[style]
+    return f"{prompt}, {suffix}"
+
+
+_FLUX2_ASPECT: dict[AspectPreset, str] = {
+    AspectPreset.SQUARE: "1:1",
+    AspectPreset.LANDSCAPE: "4:3",
+    AspectPreset.PORTRAIT: "3:4",
+    AspectPreset.STORY: "9:16",
+    AspectPreset.WIDE: "16:9",
+}
+
+
+def _build_flux2_input(
+    prompt: str, style: Style, aspect: AspectPreset,
+    negative_prompt: str | None, seed: int | None,
+) -> dict:
+    return {
+        "prompt": _with_style_suffix(prompt, style),
+        "aspect_ratio": _FLUX2_ASPECT[aspect],
+        "resolution": "1K",
+    }
+
+
+_IMAGEN4_ASPECT: dict[AspectPreset, str] = {
+    AspectPreset.SQUARE: "1:1",
+    AspectPreset.LANDSCAPE: "4:3",
+    AspectPreset.PORTRAIT: "3:4",
+    AspectPreset.STORY: "9:16",
+    AspectPreset.WIDE: "16:9",
+}
+
+
+def _build_imagen4_input(
+    prompt: str, style: Style, aspect: AspectPreset,
+    negative_prompt: str | None, seed: int | None,
+) -> dict:
+    payload = {
+        "prompt": _with_style_suffix(prompt, style),
+        "aspect_ratio": _IMAGEN4_ASPECT[aspect],
+    }
+    if negative_prompt:
+        payload["negative_prompt"] = negative_prompt
+    if seed is not None:
+        payload["seed"] = str(seed)
+    return payload
+
+
+_IDEOGRAM_IMAGE_SIZE: dict[AspectPreset, str] = {
+    AspectPreset.SQUARE: "square_hd",
+    AspectPreset.LANDSCAPE: "landscape_4_3",
+    AspectPreset.PORTRAIT: "portrait_4_3",
+    AspectPreset.STORY: "portrait_16_9",
+    AspectPreset.WIDE: "landscape_16_9",
+}
+
+_IDEOGRAM_STYLE: dict[Style, str] = {
+    Style.PHOTOREALISTIC: "REALISTIC",
+    Style.ANIME: "GENERAL",
+    Style.DIGITAL_ART: "GENERAL",
+    Style.THREE_D: "GENERAL",
+    Style.SKETCH: "GENERAL",
+    Style.PAINTING: "GENERAL",
+}
+
+
+def _build_ideogram_input(
+    prompt: str, style: Style, aspect: AspectPreset,
+    negative_prompt: str | None, seed: int | None,
+) -> dict:
+    # Ideogram даёт структурированный style-параметр — суффикс в промт не добавляем,
+    # но для стилей без прямого маппинга помогаем описанием в промте.
+    effective_prompt = prompt
+    if style in (Style.ANIME, Style.THREE_D, Style.SKETCH, Style.PAINTING):
+        effective_prompt = f"{prompt}, {STYLE_PROMPT_SUFFIX[style]}"
+    payload = {
+        "prompt": effective_prompt,
+        "image_size": _IDEOGRAM_IMAGE_SIZE[aspect],
+        "style": _IDEOGRAM_STYLE[style],
+        "rendering_speed": "BALANCED",
+    }
+    if negative_prompt:
+        payload["negative_prompt"] = negative_prompt
+    if seed is not None:
+        payload["seed"] = seed
+    return payload
+
+
+MODEL_REGISTRY: list[ModelSpec] = [
+    ModelSpec(
+        id="flux2-pro",
+        kie_model="flux-2/pro-text-to-image",
+        display_name="Flux-2 Pro",
+        provider="Black Forest Labs",
+        supports_negative_prompt=False,
+        supports_seed=False,
+        estimated_credits=20,
+        build_input=_build_flux2_input,
+    ),
+    ModelSpec(
+        id="imagen4",
+        kie_model="google/imagen4",
+        display_name="Google Imagen 4",
+        provider="Google",
+        supports_negative_prompt=True,
+        supports_seed=True,
+        estimated_credits=30,
+        build_input=_build_imagen4_input,
+    ),
+    ModelSpec(
+        id="ideogram-v3",
+        kie_model="ideogram/v3-text-to-image",
+        display_name="Ideogram V3",
+        provider="Ideogram",
+        supports_negative_prompt=True,
+        supports_seed=True,
+        estimated_credits=16,
+        build_input=_build_ideogram_input,
+    ),
+]
+
+_REGISTRY_BY_ID: dict[str, ModelSpec] = {m.id: m for m in MODEL_REGISTRY}
+
+
+def get_model(model_id: str) -> ModelSpec | None:
+    return _REGISTRY_BY_ID.get(model_id)
+
+
+def list_active_models() -> list[ModelSpec]:
+    return [m for m in MODEL_REGISTRY if m.active]
