@@ -315,6 +315,9 @@ MODEL_REGISTRY: list[ModelSpec] = [
         estimated_credits=20,
         build_input=_build_flux2_input,
     ),
+    # Imagen 4, Imagen 4 Ultra и Ideogram V3 воспроизводимо возвращают мгновенный
+    # transient-сбой на стороне kie.ai (см. "Известная проблема" в progress.md) —
+    # выключены (active=False), пока kie.ai не починит эти модели.
     ModelSpec(
         id="imagen4",
         kie_model="google/imagen4",
@@ -324,6 +327,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         supports_seed=True,
         estimated_credits=30,
         build_input=_build_imagen4_input,
+        active=False,
     ),
     ModelSpec(
         id="ideogram-v3",
@@ -334,6 +338,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         supports_seed=True,
         estimated_credits=16,
         build_input=_build_ideogram_input,
+        active=False,
     ),
     ModelSpec(
         id="imagen4-ultra",
@@ -344,6 +349,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         supports_seed=True,
         estimated_credits=45,
         build_input=_build_imagen4_input,
+        active=False,
     ),
     ModelSpec(
         id="gpt-image-2",
