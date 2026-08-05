@@ -352,7 +352,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         provider="OpenAI",
         supports_negative_prompt=False,
         supports_seed=False,
-        estimated_credits=20,
+        estimated_credits=6,
         build_input=_build_gpt_image2_input,
     ),
     ModelSpec(
@@ -362,7 +362,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         provider="xAI",
         supports_negative_prompt=False,
         supports_seed=False,
-        estimated_credits=15,
+        estimated_credits=4,
         build_input=_build_grok_imagine_input,
     ),
     ModelSpec(
@@ -372,7 +372,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         provider="ByteDance",
         supports_negative_prompt=False,
         supports_seed=False,
-        estimated_credits=15,
+        estimated_credits=6,
         build_input=_build_seedream5_lite_input,
     ),
     ModelSpec(
@@ -382,7 +382,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         provider="Alibaba",
         supports_negative_prompt=False,
         supports_seed=True,
-        estimated_credits=12,
+        estimated_credits=6,
         build_input=_build_qwen2_input,
     ),
     ModelSpec(
@@ -392,7 +392,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         provider="Google",
         supports_negative_prompt=False,
         supports_seed=False,
-        estimated_credits=20,
+        estimated_credits=4,
         build_input=_build_nano_banana_input,
     ),
     ModelSpec(
@@ -412,7 +412,7 @@ MODEL_REGISTRY: list[ModelSpec] = [
         provider="Google",
         supports_negative_prompt=False,
         supports_seed=False,
-        estimated_credits=15,
+        estimated_credits=4,
         build_input=_build_nano_banana2_lite_input,
     ),
     ModelSpec(
