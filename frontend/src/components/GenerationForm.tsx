@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AspectPreset, GenerationCreateRequest, ModelInfo, Style } from "../api/types";
 import { PURPOSE_PRESETS } from "../purposePresets";
-import { ASPECT_OPTIONS, STYLE_OPTIONS } from "../styleOptions";
+import { ASPECT_OPTIONS, STYLE_CONFLICT_KEYWORDS, STYLE_OPTIONS } from "../styleOptions";
+
+const MAX_MODELS = 5;
 
 interface Props {
   models: ModelInfo[];
@@ -21,7 +23,7 @@ export function GenerationForm({ models, submitting, onSubmit }: Props) {
 
   useEffect(() => {
     if (models.length > 0 && selectedModelIds.length === 0) {
-      setSelectedModelIds(models.map((m) => m.id));
+      setSelectedModelIds(models.slice(0, MAX_MODELS).map((m) => m.id));
     }
   }, [models, selectedModelIds.length]);
 
@@ -29,6 +31,22 @@ export function GenerationForm({ models, submitting, onSubmit }: Props) {
     () => PURPOSE_PRESETS.find((p) => p.id === purposeId) ?? PURPOSE_PRESETS[0],
     [purposeId],
   );
+
+  const styleConflict = useMemo(() => {
+    const lowerPrompt = prompt.toLowerCase();
+    if (!lowerPrompt.trim()) return null;
+    const conflicting = STYLE_OPTIONS.filter(
+      (s) =>
+        s.id !== style &&
+        STYLE_CONFLICT_KEYWORDS[s.id].some((kw) => lowerPrompt.includes(kw)),
+    );
+    if (conflicting.length === 0) return null;
+    return `В промте похоже упоминается стиль «${conflicting
+      .map((s) => s.label)
+      .join(
+        "», «",
+      )}», а в форме выбран «${STYLE_OPTIONS.find((s) => s.id === style)?.label}». Оба указания уйдут в модель вместе — результат зависит от того, что она сочтёт приоритетнее.`;
+  }, [prompt, style]);
 
   function handlePurposeChange(id: string) {
     setPurposeId(id);
@@ -39,13 +57,27 @@ export function GenerationForm({ models, submitting, onSubmit }: Props) {
   }
 
   function toggleModel(id: string) {
-    setSelectedModelIds((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id],
-    );
+    setSelectedModelIds((prev) => {
+      if (prev.includes(id)) return prev.filter((m) => m !== id);
+      if (prev.length >= MAX_MODELS) return prev;
+      return [...prev, id];
+    });
   }
 
   const selectedModels = models.filter((m) => selectedModelIds.includes(m.id));
   const estimatedTotal = selectedModels.reduce((sum, m) => sum + m.estimated_credits, 0);
+
+  const seedSupportingModels = selectedModels.filter((m) => m.supports_seed);
+  const seedHint =
+    selectedModels.length === 0
+      ? null
+      : seedSupportingModels.length === selectedModels.length
+        ? "Учитывается всеми выбранными моделями."
+        : seedSupportingModels.length === 0
+          ? "Ни одна из выбранных моделей не поддерживает seed — значение будет проигнорировано."
+          : `Учитывается только у: ${seedSupportingModels.map((m) => m.display_name).join(", ")} (остальные ${
+              selectedModels.length - seedSupportingModels.length
+            } игнорируют).`;
 
   const canSubmit = prompt.trim().length >= 3 && selectedModelIds.length > 0 && !submitting;
 
@@ -74,6 +106,7 @@ export function GenerationForm({ models, submitting, onSubmit }: Props) {
           rows={4}
           required
         />
+        {styleConflict && <p className="field-warning">{styleConflict}</p>}
       </label>
 
       <div className="field-row">
@@ -129,25 +162,41 @@ export function GenerationForm({ models, submitting, onSubmit }: Props) {
         <label className="field field-narrow">
           <span>Seed (необязательно)</span>
           <input value={seed} onChange={(e) => setSeed(e.target.value)} placeholder="напр. 12345" />
+          {seedHint && <p className="field-hint">{seedHint}</p>}
         </label>
       </div>
 
       <fieldset className="model-selector">
-        <legend>Модели для сравнения</legend>
+        <legend>
+          Модели для сравнения{" "}
+          <span className="muted">
+            (выбрано {selectedModelIds.length} из {MAX_MODELS})
+          </span>
+        </legend>
         {models.length === 0 && <p className="muted">Загрузка списка моделей...</p>}
-        {models.map((m) => (
-          <label key={m.id} className="model-checkbox">
-            <input
-              type="checkbox"
-              checked={selectedModelIds.includes(m.id)}
-              onChange={() => toggleModel(m.id)}
-            />
-            <span>
-              {m.display_name} <em className="muted">({m.provider})</em>
-            </span>
-            <span className="muted">~{m.estimated_credits} кредитов</span>
-          </label>
-        ))}
+        <div className="model-checkbox-list">
+          {models.map((m) => {
+            const checked = selectedModelIds.includes(m.id);
+            const disabled = !checked && selectedModelIds.length >= MAX_MODELS;
+            return (
+              <label
+                key={m.id}
+                className={`model-checkbox${disabled ? " model-checkbox-disabled" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => toggleModel(m.id)}
+                />
+                <span>
+                  {m.display_name} <em className="muted">({m.provider})</em>
+                </span>
+                <span className="muted">~{m.estimated_credits} кредитов</span>
+              </label>
+            );
+          })}
+        </div>
       </fieldset>
 
       <div className="form-footer">

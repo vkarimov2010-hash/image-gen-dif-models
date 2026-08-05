@@ -102,7 +102,9 @@ class KieClient:
 
         resp = await _with_retries(_call)
         data = resp.json()
-        payload = data.get("data", {})
+        # data["data"] может быть явным null в теле ответа (не только отсутствовать
+        # как ключ) — .get(..., {}) в этом случае не подставляет дефолт.
+        payload = data.get("data") or {}
         state = payload.get("state", "waiting")
 
         result_urls: list[str] = []

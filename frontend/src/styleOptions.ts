@@ -9,6 +9,55 @@ export const STYLE_OPTIONS: { id: Style; label: string }[] = [
   { id: "painting", label: "Живопись" },
 ];
 
+// Ключевые слова для эвристической проверки: похоже ли, что в промте сам
+// пользователь упоминает стиль, отличный от выбранного в форме. Это только
+// подсказка — наш код не понимает промт семантически, просто дописывает
+// суффикс выбранного стиля в конец текста (см. _with_style_suffix в
+// backend/app/registry.py), поэтому конфликтующие формулировки уходят в
+// модель вместе, без разрешения противоречия на нашей стороне.
+export const STYLE_CONFLICT_KEYWORDS: Record<Style, string[]> = {
+  photorealistic: [
+    "фотореал",
+    "гиперреалист",
+    "hyperrealistic",
+    "photorealistic",
+    "photo-realistic",
+    "photoreal",
+  ],
+  anime: ["аниме", "манга", "anime", "manga"],
+  digital_art: [
+    "digital art",
+    "цифровое искусство",
+    "цифровая живопись",
+    "концепт-арт",
+    "concept art",
+    "digital painting",
+  ],
+  "3d_render": [
+    "3d render",
+    "3d-рендер",
+    "3д рендер",
+    "octane render",
+    "cgi рендер",
+  ],
+  sketch: [
+    "скетч",
+    "эскиз",
+    "карандашн",
+    "pencil sketch",
+    "line art",
+    "линарт",
+  ],
+  painting: [
+    "живопис",
+    "картина маслом",
+    "oil painting",
+    "акварел",
+    "watercolor",
+    "мазками",
+  ],
+};
+
 export const ASPECT_OPTIONS: { id: AspectPreset; label: string }[] = [
   { id: "square", label: "Квадрат (1:1)" },
   { id: "landscape", label: "Альбомная (4:3)" },

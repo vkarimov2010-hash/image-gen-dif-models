@@ -21,7 +21,7 @@ class GenerationCreateRequest(BaseModel):
     purpose: str | None = None
     negative_prompt: str | None = None
     seed: int | None = None
-    model_ids: list[str] = Field(min_length=1, max_length=10)
+    model_ids: list[str] = Field(min_length=1, max_length=5)
 
 
 class GenerationTaskOut(BaseModel):
