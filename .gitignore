@@ -7,3 +7,5 @@ frontend/dist/
 storage/
 *.log
 .claude/
+KIE_AI_INTEGRATION.md
+blog/
