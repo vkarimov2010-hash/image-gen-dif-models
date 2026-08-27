@@ -42,3 +42,10 @@ npm run dev
 - `backend/` — FastAPI, SQLAlchemy, Alembic, интеграция с kie.ai
 - `frontend/` — React + Vite + TypeScript
 - `storage/` — локальное хранилище сгенерированных изображений (volume)
+
+## Документация
+
+- [`KIE_AI_INTEGRATION.md`](KIE_AI_INTEGRATION.md) — выжимка по API kie.ai:
+  эндпоинты, нюансы парсинга ответа, схема ретраев, проверенный реальным
+  ключом реестр моделей (стоимость, форматы вывода, особенности) и
+  минимальный клиент на `httpx`.
